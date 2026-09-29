@@ -27,6 +27,9 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+app.setWindowIcon(QIcon('LogoApp.ico'))
+app.setApplicationName('FLASH-SARRP Dosimetry')
+app.setWindowIcon(QIcon('LogoApp.ico'))
     win = MainWindow()
     win.show()
     sys.exit(app.exec())
