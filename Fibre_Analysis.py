@@ -27,9 +27,9 @@ from utils import (BG_MAIN, BG_SURFACE, PRIMARY,TEXT_MUTED, WARNING, ERROR,
 from PyQt5.QtWidgets import QProgressBar
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════[...]
 # Pulse-detection helpers
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════[...]
 
 def lowpass_filter(signal, time, cutoff_hz, order=4):
     """Zero-phase Butterworth low-pass filter."""
@@ -211,9 +211,9 @@ def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
     return results, y, seg_times
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 # File loading
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 
 def load_fibre_file(file_path: str):
     """
@@ -255,9 +255,9 @@ def load_fibre_file(file_path: str):
     return time[mask], signal[mask]
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 # Background worker (keeps the UI responsive during batch processing)
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 
 class _FibreWorker(QObject):
     """Runs the batch in a QThread; emits signals back to the UI thread."""
@@ -368,9 +368,9 @@ class _FibreWorker(QObject):
         self.finished.emit(len(results), total)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 # Fibre Tab — the QWidget registered in the main QTabWidget
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════[...]
 
 class FibreTab(QWidget):
     """Drop this into any QTabWidget."""
@@ -384,7 +384,7 @@ class FibreTab(QWidget):
         self._plot_index = -1
         self._build()
 
-    # ── layout ────────────────────────────────────────────────────────────────
+    # ── layout ──────────────────────────────────────────────────────────═[...]
     def _build(self):
         root = QHBoxLayout(self)
         root.setContentsMargins(10, 10, 10, 10)
@@ -392,8 +392,8 @@ class FibreTab(QWidget):
 
         # ── Left settings panel ───────────────────────────────────────────────
         left = QFrame()
-        left.setFixedWidth(270)
-        left.setStyleSheet(f"background:{BG_SURFACE}; border-radius:4px;")
+        left.setFixedWidth(350)
+        left.setObjectName("settingsPanel")
         lv = QVBoxLayout(left)
         lv.setContentsMargins(12, 12, 12, 12)
         lv.setSpacing(4)
@@ -475,7 +475,7 @@ class FibreTab(QWidget):
         
         root.addWidget(right)
 
-    # ── file helpers ──────────────────────────────────────────────────────────
+    # ── file helpers ────────────────────────────────────────────────────────═[...]
     def _add_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
             self, "Select fibre pulse files", "",
@@ -490,7 +490,7 @@ class FibreTab(QWidget):
         self._file_queue.clear()
         self.file_list.clear()
 
-    # ── batch run ─────────────────────────────────────────────────────────────
+    # ── batch run ─────────────────────────────────────────────────────────═[...]
     def _run_all(self):
         if not self._file_queue:
             QMessageBox.warning(self, "No files", "Add files to the queue first.")
