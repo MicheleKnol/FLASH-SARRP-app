@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 
 Prediction_Tab.py
@@ -28,44 +29,28 @@ Units
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
+import re
 
-import matplotlib
 import numpy as np
-
+import matplotlib
 matplotlib.use("QtAgg")
 
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt5.QtCore import Qt
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
 from PyQt5.QtWidgets import (
+    QWidget, QHBoxLayout, QVBoxLayout, QFrame, QLabel, QPushButton,
+    QFileDialog, QTableWidget, QTableWidgetItem, QSizePolicy,
+    QDoubleSpinBox, QLineEdit, QHeaderView, QMessageBox,
     QAbstractItemView,
-    QDoubleSpinBox,
-    QFileDialog,
-    QFrame,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QLineEdit,
-    QMessageBox,
-    QPushButton,
-    QSizePolicy,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QWidget,
+)
+from PyQt5.QtCore import Qt
+
+from utils import (BG_MAIN, BG_SURFACE, PRIMARY,TEXT_MUTED, WARNING, ERROR,
+    heading_label, section_label, make_log, log_write, hseparator,
 )
 
-from utils import (
-    BG_MAIN,
-    PRIMARY,
-    heading_label,
-    hseparator,
-    log_write,
-    make_log,
-    section_label,
-)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Change if different, taken from reproducibility measurements
@@ -142,7 +127,7 @@ _TABLE_STYLE = """
 
 
 class CalibTable(QTableWidget):
-    HEADERS = ["Duration (ms)", "AUC (V·ms)", "Film dose (Gy)"]  # noqa: RUF012
+    HEADERS = ["Duration (ms)", "AUC (V·ms)", "Film dose (Gy)"]
 
     def __init__(self, parent=None):
         super().__init__(0, 3, parent)
@@ -198,7 +183,7 @@ class ResultsTable(QTableWidget):
     COL_DR_TGT    = 6
     COL_CONV_DR   = 7
 
-    _BASE_HEADERS = [  # noqa: RUF012
+    _BASE_HEADERS = [
         "Duration (ms)",
         "Dose @ REF (Gy)",
         "CONV time @ REF\n(s)",
@@ -649,10 +634,13 @@ class PredictionTab(QWidget):
                 f"{'CONV DR@tgt':>12}  {'CONV time(s)':>12}\n"
             )
             fh.write("-" * 115 + "\n")
-            fh.writelines(f"{r['duration_ms']:>8}  {r['pred_auc']:>10.3f}  "
+            for r in self._results:
+                fh.write(
+                    f"{r['duration_ms']:>8}  {r['pred_auc']:>10.3f}  "
                     f"{r['dose_ref']:>10.3f}  {r['sigma_ref']:>7.3f}  "
                     f"{r['dose_tgt']:>10.3f}  {r['sigma_tgt']:>7.3f}  "
                     f"{r['dr_ref']:>12.1f}  {r['dr_tgt']:>12.1f}  "
-                    f"{r['conv_dr_tgt']:>12.4f}  {r['conv_time_tgt']:>12.1f}\n" for r in self._results)
+                    f"{r['conv_dr_tgt']:>12.4f}  {r['conv_time_tgt']:>12.1f}\n"
+                )
 
         log_write(self.log, f"✓ Saved: {Path(path).name}")
