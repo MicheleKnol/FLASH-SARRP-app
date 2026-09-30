@@ -362,7 +362,7 @@ class _FibreWorker(QObject):
                     f"amp {res['Amplitude (V)']:.3f} V", "")
                 results.append({"file": name, **res})
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.file_done.emit(f"✗ {name}: {e}", "error")
 
             self.progress.emit(int((idx + 1) / total * 100))

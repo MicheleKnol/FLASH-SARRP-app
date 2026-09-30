@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Film_Analysis.py
 
@@ -15,29 +14,43 @@ Right bottom  : Film Queue (left) + Results Log (right), side by side, small.
 import os
 from pathlib import Path
 
-import numpy as np
 import cv2
+import matplotlib
+import numpy as np
 import pandas as pd
 
-import matplotlib
 matplotlib.use("QtAgg")
-from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.patches import Rectangle, Circle
-
+from matplotlib.figure import Figure
+from matplotlib.patches import Circle, Rectangle
 from PyQt5.QtWidgets import (
-    QWidget, QLabel, QPushButton, QListWidget,
-    QFileDialog, QMessageBox, QHBoxLayout, QVBoxLayout, QFrame,
-    QRadioButton, QSizePolicy, QDoubleSpinBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
 
 from utils import (
-    BG_MAIN, BG_SURFACE, PRIMARY,TEXT_MUTED, WARNING, ERROR,
-    heading_label, section_label, make_entry, make_log, log_write, hseparator,
+    BG_MAIN,
+    BG_SURFACE,
+    PRIMARY,
+    TEXT_MUTED,
+    heading_label,
+    hseparator,
+    log_write,
+    make_entry,
+    make_log,
+    section_label,
 )
-
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Pure logic — no UI
@@ -343,7 +356,7 @@ class FilmReviewPanel(QWidget):
         self.stats_lbl.setText(
             f"Mean: {mean_d:.3f} Gy   Min: {min_d:.3f} Gy   Max: {max_d:.3f} Gy"
         )
-        self._last_stats = dict(mean=mean_d, min=min_d, max=max_d)
+        self._last_stats = {"mean": mean_d, "min": min_d, "max": max_d}
 
     # ── Public API — called by FilmTab ──────────────────────────────────────
 
@@ -589,7 +602,7 @@ class FilmTab(QWidget):
             self._calib_abc = FilmAnalyser.load_calibration(p)
             self._calib_lbl.setText(Path(p).name)
             log_write(self.log, f"✓ Calibration loaded: {Path(p).name}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Calibration error", str(e))
 
     def _load_bg(self):
@@ -660,7 +673,7 @@ class FilmTab(QWidget):
             doselim  = float(self.doselim_entry.text())
             roi_size = float(self.roi_entry.text())
             dose     = FilmAnalyser.process(path, self._bg_path, self._calib_abc)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log_write(self.log, f"✗ {name}: {e}")
             self._current_idx += 1
             self._open_next_film()

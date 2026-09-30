@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
 """
-
+main
 """
 
 import sys
+
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
-from Film_Analysis import FilmTab
+
 from Fibre_Analysis import FibreTab
 from Fibre_Prediction import PredictionTab
+from Film_Analysis import FilmTab
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -27,9 +30,9 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-app.setWindowIcon(QIcon('LogoApp.ico'))
-app.setApplicationName('FLASH-SARRP Dosimetry')
-app.setWindowIcon(QIcon('LogoApp.ico'))
+    app.setWindowIcon(QIcon('LogoApp.ico'))
+    app.setApplicationName('FLASH-SARRP Dosimetry')
+    app.setWindowIcon(QIcon('LogoApp.ico'))
     win = MainWindow()
     win.show()
     sys.exit(app.exec())

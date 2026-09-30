@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 utils.py
 --------
@@ -6,8 +5,8 @@ Shared colour/font constants and reusable PySide6 helper widgets.
 Import this in film_tab.py, fibre_tab.py, and main.py.
 """
 
-from PyQt5.QtWidgets import QLabel, QLineEdit, QTextEdit, QFrame
 from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QFrame, QLabel, QLineEdit, QTextEdit
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colour palette  (black & white / grayscale)
