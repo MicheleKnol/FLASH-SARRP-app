@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Fibre_analysis.py
 """
@@ -7,25 +6,41 @@ import os
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("QtAgg")
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
+matplotlib.use("QtAgg")
 import numpy as np
 import pandas as pd
-
-from scipy.signal import butter, filtfilt, iirnotch
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt5.QtCore import QObject, QThread, Signal
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from scipy.ndimage import uniform_filter1d
+from scipy.signal import butter, filtfilt, iirnotch
 
-from PyQt5.QtWidgets import (QWidget, QLabel, QPushButton, QListWidget, QFileDialog,
-    QMessageBox, QHBoxLayout, QVBoxLayout, QFrame, QCheckBox)
-from PyQt5.QtCore import QThread, Signal, QObject
-
-from utils import (BG_MAIN, BG_SURFACE, PRIMARY,TEXT_MUTED, WARNING, ERROR,
-    heading_label, section_label, make_entry, make_log, log_write, hseparator)
-
-from PyQt5.QtWidgets import QProgressBar
-
+from utils import (
+    BG_MAIN,
+    BG_SURFACE,
+    PRIMARY,
+    TEXT_MUTED,
+    heading_label,
+    hseparator,
+    log_write,
+    make_entry,
+    make_log,
+    section_label,
+)
 
 # ══════════════════════════════════════════════════════════════════[...]
 # Pulse-detection helpers
@@ -83,7 +98,7 @@ def find_pulse_window(time, y, pre_end_ms=20.0, hi_frac=0.2, min_run_ms=0.5):
     thr   = base + max(5 * max(noise, 1e-9), hi_frac * (peak - base))
 
     dt      = np.median(np.diff(time))
-    min_run = max(1, int(round(min_run_ms / max(dt, 1e-9))))
+    min_run = max(1, round(min_run_ms / max(dt, 1e-9)))
     above   = y > thr
 
     start_idx, run = None, 0
@@ -160,7 +175,7 @@ def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
     fixed_threshold = np.max(signal) * 0.75
     is_high = yw >= fixed_threshold
     dt = np.median(np.diff(tw))
-    min_run_samples = max(1, int(round(0.5 / max(dt, 1e-9))))
+    min_run_samples = max(1, round(0.5 / max(dt, 1e-9)))
     is_high = clean_binary_runs(is_high, min_run_samples)
 
     if not np.any(is_high):
@@ -314,7 +329,7 @@ class _FibreWorker(QObject):
                         f.write(f"{k:40s}: {v:.3f}\n")
 
                 # Analysis plot
-                (t_start, t_end,
+                (_t_start, _t_end,
                  t_low1_s, t_low1_e,
                  t_high_s, t_high_e,
                  t_low2_s, t_low2_e) = seg
@@ -351,7 +366,7 @@ class _FibreWorker(QObject):
                     f"amp {res['Amplitude (V)']:.3f} V", "")
                 results.append({"file": name, **res})
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.file_done.emit(f"✗ {name}: {e}", "error")
 
             self.progress.emit(int((idx + 1) / total * 100))
@@ -540,7 +555,7 @@ class FibreTab(QWidget):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
     
-        (t_start, t_end,
+        (_t_start, _t_end,
          t_low1_s, t_low1_e,
          t_high_s, t_high_e,
          t_low2_s, t_low2_e) = seg
