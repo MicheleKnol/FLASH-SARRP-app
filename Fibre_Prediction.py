@@ -58,7 +58,6 @@ from PyQt5.QtWidgets import (
 )
 
 from utils import (
-    BG_MAIN,
     PRIMARY,
     heading_label,
     hseparator,
@@ -266,8 +265,8 @@ class PredictionTab(QWidget):
 
     def _init_widgets(self):
         self.left_frame = QFrame()
-        self.left_frame.setFixedWidth(300)
-        self.left_frame.setStyleSheet(f"background:{BG_MAIN}; border-radius:4px;")
+        self.left_frame.setFixedWidth(350)
+        self.left_frame.setObjectName("settingsPanel")
 
         self.ref_ssd_spin = QDoubleSpinBox()
         self.ref_ssd_spin.setRange(1.0, 100.0)

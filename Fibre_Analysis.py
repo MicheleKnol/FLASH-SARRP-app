@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from scipy.integrate import trapezoid
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import butter, filtfilt, iirnotch
 
@@ -172,7 +173,7 @@ def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
     tw = time[start_idx : end_idx + 1]
     yw = y    [start_idx : end_idx + 1]
 
-    fixed_threshold = np.max(signal) * 0.75
+    fixed_threshold = np.max(signal) * 0.5
     is_high = yw >= fixed_threshold
     dt = np.median(np.diff(tw))
     min_run_samples = max(1, round(0.5 / max(dt, 1e-9)))
@@ -204,7 +205,7 @@ def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
     high_values = y[high_mask]
 
     amplitude = np.percentile(high_values, 99) - baseline_before
-    area = (np.trapz(y[start_idx : end_idx + 1], time[start_idx : end_idx + 1])
+    area = (trapezoid(y[start_idx : end_idx + 1], time[start_idx : end_idx + 1])
             - baseline_before * total_duration)
 
     results = {
@@ -417,22 +418,31 @@ class FibreTab(QWidget):
         lv.addWidget(hseparator())
 
         lv.addWidget(section_label("Butterworth low-pass cutoff (Hz)"))
+        self.cutoff_entry = QLabel("Default: 1 Hz")
         self.cutoff_entry = make_entry("1.0", width=80)
         lv.addWidget(self.cutoff_entry)
+        lv.addSpacing(25)
 
         lv.addWidget(section_label("Filter order"))
+        self.order_entry = QLabel("Default: 4th order")
         self.order_entry = make_entry("4", width=80)
         lv.addWidget(self.order_entry)
+        lv.addSpacing(25)
 
-        lv.addWidget(section_label("Gain (dB)  [reference: 70 dB]"))
+        lv.addWidget(section_label("Gain (dB)"))
+        self.gain_entry = QLabel("Reference: 70 dB")
         self.gain_entry = make_entry("70", width=80)
         lv.addWidget(self.gain_entry)
+        lv.addSpacing(25)
 
         self.mains_cb = QCheckBox("50 Hz notch filter")
         lv.addWidget(self.mains_cb)
+        lv.addSpacing(25)
 
         lv.addWidget(hseparator())
-        note = QLabel("Output files are saved next\nto each source file.")
+        lv.addSpacing(25)
+
+        note = QLabel("Add files and click run all to analyze the fibre\nsignal(s).\n\nYou can add .dat, .csv, or .txt files.")
         note.setStyleSheet(f"color:{PRIMARY}; font-size:9pt;")
         lv.addWidget(note)
 
