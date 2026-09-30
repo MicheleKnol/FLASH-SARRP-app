@@ -324,13 +324,25 @@ class PredictionTab(QWidget):
         self.res_table = ResultsTable()
         self.res_table.setMinimumHeight(180)
 
-        self._fig = Figure(figsize=(6, 4))
+        self._fig = Figure(figsize=(12, 4))  # Wider for two plots
         self._fig.patch.set_facecolor("white")
-        self._ax = self._fig.add_subplot(111)
-        self._ax.set_facecolor("white")
-        self._ax.tick_params(colors="black", labelsize=8)
-        for sp in self._ax.spines.values():
+        
+        # Create two subplots side by side
+        self._ax_cal = self._fig.add_subplot(121)  # Left: calibration
+        self._ax_pred = self._fig.add_subplot(122)  # Right: predictions
+        
+        # Style calibration plot
+        self._ax_cal.set_facecolor("white")
+        self._ax_cal.tick_params(colors="black", labelsize=8)
+        for sp in self._ax_cal.spines.values():
             sp.set_color("black")
+        
+        # Style predictions plot
+        self._ax_pred.set_facecolor("white")
+        self._ax_pred.tick_params(colors="black", labelsize=8)
+        for sp in self._ax_pred.spines.values():
+            sp.set_color("black")
+        
         self._canvas = FigureCanvas(self._fig)
         self._canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._canvas.setMaximumHeight(320)
@@ -342,49 +354,65 @@ class PredictionTab(QWidget):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(10)
     
-        # ── LEFT PANEL (unchanged) ────────────────────────────────
+        # ── LEFT PANEL ────────────────────────────────────────────────────
         lv = QVBoxLayout(self.left_frame)
         lv.setContentsMargins(12, 12, 12, 12)
-        lv.setSpacing(5)
+        lv.setSpacing(8)
     
         lv.addWidget(heading_label("SESSION PARAMETERS"))
         lv.addWidget(hseparator())
+        lv.addSpacing(20)
     
         lv.addWidget(section_label("Reference SSD (cm)"))
         lv.addWidget(self.ref_ssd_spin)
+        lv.addSpacing(20)
+        
         lv.addWidget(section_label("Target SSD (cm)"))
         lv.addWidget(self.tgt_ssd_spin)
+        lv.addSpacing(20)
+        
         lv.addWidget(section_label("Target durations (ms, comma-separated)"))
         lv.addWidget(self.dur_edit)
+        lv.addSpacing(20)
     
         lv.addWidget(hseparator())
+        lv.addSpacing(20)
         lv.addWidget(heading_label("CONV SETTINGS"))
         lv.addWidget(section_label("CONV / FLASH dose-rate ratio"))
         lv.addWidget(self.conv_ratio_spin)
+        lv.addSpacing(20)
     
         lv.addWidget(hseparator())
+        lv.addSpacing(20)
         lv.addWidget(heading_label("WARMUP FILES"))
         lv.addWidget(self.warmup_lbl)
-        lv.addWidget(self.btn_warmup)
-    
+        lv.addSpacing(20)
+        
         lv.addWidget(hseparator())
-        lv.addWidget(self.predict_btn)
-        lv.addWidget(self.save_btn)
-    
-        lv.addWidget(hseparator())
+        lv.addSpacing(20)
         lv.addWidget(heading_label("LOG"))
         lv.addWidget(self.log)
         lv.addStretch()
     
         root.addWidget(self.left_frame)
     
-        # ── RIGHT PANEL (NEW STRUCTURE) ───────────────────────────
+        # ── RIGHT PANEL ───────────────────────────────────────────────────
         right = QWidget()
         rv = QVBoxLayout(right)
         rv.setContentsMargins(0, 0, 0, 0)
         rv.setSpacing(8)
         
-        # ── TOP ROW ─────────────────────────────
+        # ── TOP ROW: HEADER WITH BUTTONS ─────────────────────────────
+        hdr = QHBoxLayout()
+        hdr.addWidget(heading_label("CALIBRATION & PREDICTIONS"))
+        hdr.addStretch()
+        
+        hdr.addWidget(self.btn_warmup)
+        hdr.addWidget(self.predict_btn)
+        hdr.addWidget(self.save_btn)
+        rv.addLayout(hdr)
+        
+        # ── TOP: calibration table + plot ────────────────────────────
         top = QHBoxLayout()
         
         # LEFT: calibration table
@@ -412,11 +440,11 @@ class PredictionTab(QWidget):
         top.addWidget(left_widget, 1)
         top.addWidget(right_widget, 2)
         
-        # ── FULL WIDTH STATS BAR ─────────────────
+        # ── FULL WIDTH STATS BAR ─────────────────────────────────────
         rv.addLayout(top, 3)
         rv.addWidget(self.stats_lbl)
         
-        # ── PREDICTIONS ──────────────────────────
+        # ── PREDICTIONS ──────────────────────────────────────────────
         rv.addWidget(heading_label("PREDICTIONS"))
         rv.addWidget(self.res_table, 3)
         
@@ -572,45 +600,56 @@ class PredictionTab(QWidget):
                 ref_ssd, tgt_ssd, scaling, dr_ref, dr_tgt,
                 conv_ratio):
 
-        ax = self._ax
-        ax.clear()
-        ax.set_facecolor("white")
+        # ── LEFT PLOT: Calibration curve only ─────────────────────────────
+        ax_cal = self._ax_cal
+        ax_cal.clear()
+        ax_cal.set_facecolor("white")
     
-        # ── Calibration data ─────────────────────────────
+        # Calibration data
         cal_aucs  = np.array([c["AUC_Vms"] for c in cal])
         cal_doses = np.array([c["film_dose_Gy"] for c in cal])
     
-        ax.scatter(cal_aucs, cal_doses,
-                   color="black", s=40, label="Calibration data")
+        ax_cal.scatter(cal_aucs, cal_doses,
+                       color="black", s=40, label="Calibration data")
     
-        # ── Calibration fit ──────────────────────────────
+        # Calibration fit
         auc_fit  = np.linspace(0, cal_aucs.max() * 1.2, 200)
         dose_fit = slope * auc_fit + intercept
     
-        ax.plot(auc_fit, dose_fit,
-                color="#1f77b4", lw=2,
-                label=f"Calibration fit (R²={r2:.4f})")
+        ax_cal.plot(auc_fit, dose_fit,
+                    color="#1f77b4", lw=2,
+                    label=f"Fit (R²={r2:.4f})")
     
-        # ── FLASH reference prediction (convert duration → AUC → dose)
-        pred_aucs = np.array([r["pred_auc"] for r in self._results])
-        pred_dose_ref = np.array([r["dose_ref"] for r in self._results])
+        ax_cal.set_xlabel("AUC (V·ms)", fontsize=9)
+        ax_cal.set_ylabel(f"Dose @ {ref_ssd:.1f} cm (Gy)", fontsize=9)
+        ax_cal.set_title("Calibration Curve", fontsize=10, fontweight="bold")
+        ax_cal.grid(True, alpha=0.2, color="black")
+        ax_cal.legend(fontsize=8)
+        
+        # ── RIGHT PLOT: Predictions only ──────────────────────────────────
+        ax_pred = self._ax_pred
+        ax_pred.clear()
+        ax_pred.set_facecolor("white")
     
-        ax.plot(pred_aucs, pred_dose_ref,
-                linestyle="--",
-                color="#2ca02c",
-                lw=2,
-                marker="o",
-                label=f"FLASH prediction @ {ref_ssd:.1f} cm")
+        # FLASH predictions
+        if self._results:
+            pred_aucs = np.array([r["pred_auc"] for r in self._results])
+            pred_dose_ref = np.array([r["dose_ref"] for r in self._results])
+        
+            ax_pred.plot(pred_aucs, pred_dose_ref,
+                        linestyle="--",
+                        color="#2ca02c",
+                        lw=2,
+                        marker="o",
+                        markersize=5,
+                        label=f"FLASH @ {ref_ssd:.1f} cm")
     
-        # ── Labels ───────────────────────────────────────
-        ax.set_xlabel("AUC (V·ms)")
-        ax.set_ylabel(f"Dose @ {ref_ssd:.1f} cm (Gy)")
-        ax.set_title("Calibration curve & FLASH reference prediction", fontsize=10)
-    
-        ax.grid(True, alpha=0.2, color="black")
-    
-        ax.legend(fontsize=8)
-    
+        ax_pred.set_xlabel("AUC (V·ms)", fontsize=9)
+        ax_pred.set_ylabel(f"Dose @ {ref_ssd:.1f} cm (Gy)", fontsize=9)
+        ax_pred.set_title("Predictions", fontsize=10, fontweight="bold")
+        ax_pred.grid(True, alpha=0.2, color="black")
+        ax_pred.legend(fontsize=8)
+        
         self._fig.tight_layout()
         self._canvas.draw()
 

@@ -41,7 +41,6 @@ from PyQt5.QtWidgets import (
 
 from utils import (
     BG_MAIN,
-    BG_SURFACE,
     PRIMARY,
     TEXT_MUTED,
     heading_label,
@@ -147,9 +146,9 @@ class FilmReviewPanel(QWidget):
         # ── Top bar: title + dose limit spinbox + buttons ─────────────────────
         top = QHBoxLayout()
 
-        self.title_lbl = QLabel("📽  No film loaded")
+        self.title_lbl = QLabel("No film loaded")
         self.title_lbl.setStyleSheet(
-            f"color:{BG_SURFACE}; font-size:13pt; font-weight:bold;")
+            f"color:{PRIMARY}; font-size:13pt; font-weight:bold;")
         top.addWidget(self.title_lbl)
         top.addStretch()
 
@@ -478,6 +477,7 @@ class FilmTab(QWidget):
 
         lv.addWidget(heading_label("SETTINGS"))
         lv.addWidget(hseparator())
+        lv.addSpacing(25)
 
         # Calibration
         lv.addWidget(section_label("Calibration file (.txt)"))
@@ -514,9 +514,9 @@ class FilmTab(QWidget):
         btn_out.clicked.connect(self._pick_output)
         lv.addWidget(btn_out)
 
-        lv.addSpacing(15)
+        lv.addSpacing(25)
         lv.addWidget(hseparator())
-        lv.addSpacing(15)
+        lv.addSpacing(25)
 
         lv.addWidget(section_label("Dosemap settings"))
 

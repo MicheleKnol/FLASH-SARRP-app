@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 from Fibre_Analysis import FibreTab
 from Fibre_Prediction import PredictionTab
 from Film_Analysis import FilmTab
+from Film_Calibration import FilmCalibrationTab
 
 
 class MainWindow(QMainWindow):
@@ -17,10 +18,10 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("FLASH SARRP Geneva Dosimetry")
-        self.resize(1200, 750)
+        self.resize(1600, 1000)
 
         tabs = QTabWidget()
-        # tabs.addTab(CalibTab(), "Film Calibration")
+        tabs.addTab(FilmCalibrationTab(), "Film Calibration")
         tabs.addTab(FilmTab(), "Film Analysis")
         tabs.addTab(FibreTab(), "Fibre Pulse Analysis")
         tabs.addTab(PredictionTab(), "Dose Predictions")

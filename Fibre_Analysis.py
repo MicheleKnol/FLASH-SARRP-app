@@ -14,6 +14,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5.QtCore import QObject, QThread, Signal
 from PyQt5.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QFileDialog,
     QFrame,
@@ -23,6 +24,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QRadioButton,
     QVBoxLayout,
     QWidget,
 )
@@ -149,10 +151,58 @@ def clean_binary_runs(flags, min_run):
     return out.astype(bool)
 
 
-def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
-                  remove_mains=False, mains_hz=50.0):
+def analyze_pulse_one_tube(time, signal, cutoff_hz=2.0, filter_order=4,
+                           remove_mains=False, mains_hz=50.0):
     """
-    Smooth → detect pulse window → segment into low/high plateaus → metrics.
+    Single tube analysis: smooth → integrate whole pulse.
+    
+    Returns
+    -------
+    results   : dict of scalar metrics
+    smoothed  : filtered voltage array (same length as inputs)
+    seg_times : 8-tuple (all zeros for compatibility with plotting)
+    """
+    y = smooth_signal(signal, time, cutoff_hz=cutoff_hz, order=filter_order,
+                      remove_mains=remove_mains, mains_hz=mains_hz)
+
+    start_idx, end_idx, baseline_before = find_pulse_window(time, y)
+    t_start = time[start_idx]
+    t_end   = time[end_idx]
+
+    after_mask     = np.arange(len(time)) > end_idx
+    baseline_after = np.mean(y[after_mask]) if np.any(after_mask) else y[end_idx]
+
+    total_duration = max(0.0, t_end - t_start)
+    
+    high_mask   = (time >= t_start) & (time <= t_end)
+    high_values = y[high_mask]
+    
+    amplitude = np.percentile(high_values, 99) - baseline_before
+    area = (trapezoid(y[start_idx : end_idx + 1], time[start_idx : end_idx + 1])
+            - baseline_before * total_duration)
+
+    results = {
+        "Mean baseline before (V)":         baseline_before,
+        "Mean baseline after (V)":           baseline_after,
+        "Total duration (ms)":               total_duration,
+        "Delay (ms)":                        0.0,
+        "Duration Tube 1 (ms)":              total_duration,
+        "Duration Tube 2 (ms)":              0.0,
+        "Area under curve (V·ms)":           area,
+        "Amplitude (V)":                     amplitude
+    }
+
+    # Dummy seg_times for one-tube (all zeros for plotting)
+    seg_times = (t_start, t_end, t_start, t_start, t_start, t_end, t_end, t_end)
+
+    return results, y, seg_times
+
+
+def analyze_pulse_two_tubes(time, signal, cutoff_hz=2.0, filter_order=4,
+                            remove_mains=False, mains_hz=50.0):
+    """
+    Two-tube analysis: smooth → detect pulse window → segment into 
+    low/high plateaus → metrics.
 
     Returns
     -------
@@ -173,7 +223,7 @@ def analyze_pulse(time, signal, cutoff_hz=2.0, filter_order=4,
     tw = time[start_idx : end_idx + 1]
     yw = y    [start_idx : end_idx + 1]
 
-    fixed_threshold = np.max(signal) * 0.5
+    fixed_threshold = np.max(signal) * 0.75
     is_high = yw >= fixed_threshold
     dt = np.median(np.diff(tw))
     min_run_samples = max(1, round(0.5 / max(dt, 1e-9)))
@@ -283,13 +333,14 @@ class _FibreWorker(QObject):
     highlight = Signal(int)           # list index to highlight
     plot_ready = Signal(object, object, object, object, str) #Plot
 
-    def __init__(self, file_queue, cutoff, order, gain_db, mains):
+    def __init__(self, file_queue, cutoff, order, gain_db, mains, tube_mode):
         super().__init__()
         self.file_queue = file_queue
         self.cutoff     = cutoff
         self.order      = order
         self.gain_db    = gain_db
         self.mains      = mains
+        self.tube_mode  = tube_mode  # "one" or "two"
         self._plot_history = []
         self._plot_index = -1
 
@@ -304,11 +355,20 @@ class _FibreWorker(QObject):
 
             try:
                 time, signal = load_fibre_file(path)
-                res, smoothed, seg = analyze_pulse(
-                    time, signal,
-                    cutoff_hz=self.cutoff, filter_order=self.order,
-                    remove_mains=self.mains,
-                )
+                
+                # Choose analysis based on tube mode
+                if self.tube_mode == "one":
+                    res, smoothed, seg = analyze_pulse_one_tube(
+                        time, signal,
+                        cutoff_hz=self.cutoff, filter_order=self.order,
+                        remove_mains=self.mains,
+                    )
+                else:  # "two"
+                    res, smoothed, seg = analyze_pulse_two_tubes(
+                        time, signal,
+                        cutoff_hz=self.cutoff, filter_order=self.order,
+                        remove_mains=self.mains,
+                    )
                 
                 self.plot_ready.emit(time, signal, smoothed, seg, name)
                 
@@ -323,14 +383,15 @@ class _FibreWorker(QObject):
                 txt_path = os.path.join(outdir, f"{basename}_analysis.txt")
                 with open(txt_path, "w") as f:
                     f.write(f"Pulse Analysis — {Path(path).name}\n")
-                    f.write(f"Cutoff : {self.cutoff} Hz | Order : {self.order} | "
+                    f.write(f"Mode: {self.tube_mode.upper()} tube(s) | "
+                            f"Cutoff : {self.cutoff} Hz | Order : {self.order} | "
                             f"Notch : {'on' if self.mains else 'off'} | "
                             f"Gain : {self.gain_db} dB\n\n")
                     for k, v in res.items():
                         f.write(f"{k:40s}: {v:.3f}\n")
 
                 # Analysis plot
-                (_t_start, _t_end,
+                (t_start, t_end,
                  t_low1_s, t_low1_e,
                  t_high_s, t_high_e,
                  t_low2_s, t_low2_e) = seg
@@ -346,11 +407,17 @@ class _FibreWorker(QObject):
                 ax.plot(time, signal,   alpha=0.25, color="white", label="Raw")
                 ax.plot(time, smoothed, lw=1.5, color="#f44336",
                         label=f"LP {self.cutoff} Hz")
-                ax.axvspan(t_low1_s, t_low1_e, alpha=0.20, color="#f44336",
-                           label="One tube")
-                ax.axvspan(t_high_s, t_high_e, alpha=0.20, color=TEXT_MUTED,
-                           label="Both tubes")
-                ax.axvspan(t_low2_s, t_low2_e, alpha=0.20, color="#f44336")
+                
+                if self.tube_mode == "two":
+                    ax.axvspan(t_low1_s, t_low1_e, alpha=0.20, color="#f44336",
+                               label="Tube 1 only")
+                    ax.axvspan(t_high_s, t_high_e, alpha=0.20, color=TEXT_MUTED,
+                               label="Both tubes")
+                    ax.axvspan(t_low2_s, t_low2_e, alpha=0.20, color="#f44336",
+                               label="Tube 2 only")
+                else:
+                    ax.axvspan(t_start, t_end, alpha=0.20, color="#f44336",
+                               label="Pulse window")
 
                 ax.set_xlabel("Time (ms)", color=PRIMARY)
                 ax.set_ylabel("Voltage (V)", color=PRIMARY)
@@ -398,6 +465,7 @@ class FibreTab(QWidget):
         self._worker     = None
         self._plot_history = []
         self._plot_index = -1
+        self._tube_mode  = "two"  # Default to two-tube mode
         self._build()
 
     # ── layout ──────────────────────────────────────────────────────────═[...]
@@ -416,21 +484,44 @@ class FibreTab(QWidget):
 
         lv.addWidget(heading_label("SETTINGS"))
         lv.addWidget(hseparator())
+        lv.addSpacing(25)
+
+        # ── Tube mode selector ────────────────────────────────────────────────
+        lv.addWidget(section_label("Tube mode"))
+        tube_group = QButtonGroup()
+        self.tube_one_rb = QRadioButton("One tube")
+        self.tube_two_rb = QRadioButton("Two tubes")
+        self.tube_two_rb.setChecked(True)
+        tube_group.addButton(self.tube_one_rb)
+        tube_group.addButton(self.tube_two_rb)
+        self.tube_one_rb.toggled.connect(self._on_tube_mode_changed)
+        lv.addWidget(self.tube_one_rb)
+        lv.addWidget(self.tube_two_rb)
+        lv.addSpacing(25)
+        
+        lv.addWidget(hseparator())
+        lv.addSpacing(25)
 
         lv.addWidget(section_label("Butterworth low-pass cutoff (Hz)"))
-        self.cutoff_entry = QLabel("Default: 1 Hz")
-        self.cutoff_entry = make_entry("1.0", width=80)
+        note = QLabel("Default: 1 Hz")
+        note.setStyleSheet(f"color:{TEXT_MUTED}; font-size:8pt;")
+        lv.addWidget(note)
+        self.cutoff_entry = make_entry("1", width=80)
         lv.addWidget(self.cutoff_entry)
         lv.addSpacing(25)
 
         lv.addWidget(section_label("Filter order"))
-        self.order_entry = QLabel("Default: 4th order")
+        note = QLabel("Default: 4th order")
+        note.setStyleSheet(f"color:{TEXT_MUTED}; font-size:8pt;")
+        lv.addWidget(note)
         self.order_entry = make_entry("4", width=80)
         lv.addWidget(self.order_entry)
         lv.addSpacing(25)
 
         lv.addWidget(section_label("Gain (dB)"))
-        self.gain_entry = QLabel("Reference: 70 dB")
+        note = QLabel("Reference: 70 dB")
+        note.setStyleSheet(f"color:{TEXT_MUTED}; font-size:8pt;")
+        lv.addWidget(note)
         self.gain_entry = make_entry("70", width=80)
         lv.addWidget(self.gain_entry)
         lv.addSpacing(25)
@@ -441,8 +532,7 @@ class FibreTab(QWidget):
 
         lv.addWidget(hseparator())
         lv.addSpacing(25)
-
-        note = QLabel("Add files and click run all to analyze the fibre\nsignal(s).\n\nYou can add .dat, .csv, or .txt files.")
+        note = QLabel("Add you .dat, .csv, or .txt files and click on\nrun all to start the analysis.")
         note.setStyleSheet(f"color:{PRIMARY}; font-size:9pt;")
         lv.addWidget(note)
 
@@ -500,6 +590,10 @@ class FibreTab(QWidget):
         
         root.addWidget(right)
 
+    def _on_tube_mode_changed(self):
+        """Update tube mode when radio button changes."""
+        self._tube_mode = "one" if self.tube_one_rb.isChecked() else "two"
+
     # ── file helpers ────────────────────────────────────────────────────────═[...]
     def _add_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
@@ -535,7 +629,7 @@ class FibreTab(QWidget):
         self.progress_bar.setValue(0)
 
         self._worker = _FibreWorker(
-            list(self._file_queue), cutoff, order, gain_db, mains)
+            list(self._file_queue), cutoff, order, gain_db, mains, self._tube_mode)
         self._thread = QThread()
         self._worker.moveToThread(self._thread)
 
@@ -565,7 +659,7 @@ class FibreTab(QWidget):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
     
-        (_t_start, _t_end,
+        (t_start, t_end,
          t_low1_s, t_low1_e,
          t_high_s, t_high_e,
          t_low2_s, t_low2_e) = seg
@@ -573,9 +667,12 @@ class FibreTab(QWidget):
         ax.plot(time, signal, alpha=0.25, color="black", label="Raw")
         ax.plot(time, smoothed, lw=1.5, color="red", label="Filtered")
     
-        ax.axvspan(t_low1_s, t_low1_e, alpha=0.2, color="red", label="One tube")
-        ax.axvspan(t_high_s, t_high_e, alpha=0.2, color="blue", label="Both tubes")
-        ax.axvspan(t_low2_s, t_low2_e, alpha=0.2, color="red")
+        if self._tube_mode == "two":
+            ax.axvspan(t_low1_s, t_low1_e, alpha=0.2, color="red", label="Tube 1 only")
+            ax.axvspan(t_high_s, t_high_e, alpha=0.2, color="blue", label="Both tubes")
+            ax.axvspan(t_low2_s, t_low2_e, alpha=0.2, color="red", label="Tube 2 only")
+        else:
+            ax.axvspan(t_start, t_end, alpha=0.2, color="red", label="Pulse window")
     
         ax.set_title(name)
         ax.set_xlabel("Time (ms)")
