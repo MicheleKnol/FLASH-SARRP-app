@@ -2,7 +2,7 @@
 GUI to use for the dosimetry of the FLASH-SARRP
 
 
-To install the applications:
+To install the application:
 
 
 git clone https://github.com/MicheleKnol/FLASH-SARRP-app
