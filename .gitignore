@@ -1,0 +1,18 @@
+# Build outputs
+build/
+dist/
+*.exe
+*.pkg
+*.pyc
+__pycache__/
+*.egg-info/
+.pyinstaller/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
