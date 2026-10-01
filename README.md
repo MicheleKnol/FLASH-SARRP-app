@@ -11,4 +11,4 @@ cd FLASH-SARRP-app
 
 pip install -r requirements.txt
 
-pyinstaller --onefile FLASH-SARRP_Dosimetry.spec
+pyinstaller FLASH-SARRP_Dosimetry.spec
