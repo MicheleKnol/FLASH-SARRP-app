@@ -13,9 +13,10 @@ Workflow
 1. Define calibration data in the CALIBRATION section, or load a .txt
    warmup file as before.
 2. Select warmup .txt files (exported by the Fibre Analysis tab).
-3. Set session parameters (target SSD, durations).
-4. Click "Predict" → table + plot update live.
-5. Save results to .txt.
+3. Choose reference SSD (7 cm for two tubes, 5.8 cm for one tube).
+4. Set target durations.
+5. Click "Predict" → table + plot update live.
+6. Save results to .txt.
 
 Units
 -----
@@ -66,9 +67,9 @@ from utils import (
     section_label,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────[...]
 # Change if different, taken from reproducibility measurements
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────[...]
 #Bottom tube (CONV 1.8mA)
 CONV_FLASH_RATIO = 0.0019
 
@@ -76,9 +77,9 @@ CONV_FLASH_RATIO = 0.0019
 # CONV_FLASH_RATIO = 0.002
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────[...]
 # Physics helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────[...]
 
 def parse_analysis_txt(filepath: str) -> dict:
     results: dict = {}
@@ -109,9 +110,9 @@ def ssd_scale(dose: float, ref: float, tgt: float) -> float:
     return dose * (ref / tgt) ** 2
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────–[...]
 # Calibration input table
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────–[...]
 
 _CAL_DEFAULTS = [
     (50,  20.205, 3.128),
@@ -182,49 +183,40 @@ class CalibTable(QTableWidget):
         return out
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Results table
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────–[...]
+# Results table (simplified - only reference SSD now)
+# ────────────────────────────────────────────────────────────────–[...]
 
 class ResultsTable(QTableWidget):
 
     COL_DUR       = 0
     COL_DOSE_REF  = 1
     COL_CONV_REF  = 2
-    COL_DOSE_TGT  = 3
-    COL_CONV_TGT  = 4
-    COL_DR_REF    = 5
-    COL_DR_TGT    = 6
-    COL_CONV_DR   = 7
+    COL_DR_REF    = 3
+    COL_CONV_DR   = 4
 
     _BASE_HEADERS = [  # noqa: RUF012
         "Duration (ms)",
-        "Dose @ REF (Gy)",
-        "CONV time @ REF\n(s)",
-        "Dose @ TGT (Gy)",
-        "CONV time @ TGT\n(s)",
-        "FLASH DR @ REF\n(Gy/s)",
-        "FLASH DR @ TGT\n(Gy/s)",
-        "CONV DR @ TGT\n(Gy/s)",
+        "Dose (Gy)",
+        "CONV time (s)",
+        "FLASH DR (Gy/s)",
+        "CONV DR (Gy/s)",
     ]
 
     def __init__(self, parent=None):
-        super().__init__(0, 8, parent)   # ← 8 not 10
+        super().__init__(0, 5, parent)
         self.setHorizontalHeaderLabels(self._BASE_HEADERS)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.setAlternatingRowColors(True)
         self.setStyleSheet(_TABLE_STYLE)
 
-    def populate(self, rows: list[dict], ref_ssd: float, tgt_ssd: float):
+    def populate(self, rows: list[dict], ref_ssd: float):
         hdrs = list(self._BASE_HEADERS)
         hdrs[self.COL_DOSE_REF] = f"Dose @ {ref_ssd:.1f} cm (Gy)"
         hdrs[self.COL_CONV_REF] = f"CONV time\n@ {ref_ssd:.1f} cm (s)"
-        hdrs[self.COL_DOSE_TGT] = f"Dose @ {tgt_ssd:.1f} cm (Gy)"
-        hdrs[self.COL_CONV_TGT] = f"CONV time\n@ {tgt_ssd:.1f} cm (s)"
         hdrs[self.COL_DR_REF]   = f"FLASH DR\n@ {ref_ssd:.1f} cm (Gy/s)"
-        hdrs[self.COL_DR_TGT]   = f"FLASH DR\n@ {tgt_ssd:.1f} cm (Gy/s)"
-        hdrs[self.COL_CONV_DR]  = f"CONV DR\n@ {tgt_ssd:.1f} cm (Gy/s)"
+        hdrs[self.COL_CONV_DR]  = f"CONV DR\n@ {ref_ssd:.1f} cm (Gy/s)"
         self.setHorizontalHeaderLabels(hdrs)
         self.setRowCount(0)
 
@@ -234,20 +226,17 @@ class ResultsTable(QTableWidget):
                 f"{r['duration_ms']}",
                 f"{r['dose_ref']:.3f}",
                 f"{r['conv_time_ref']:.1f}",
-                f"{r['dose_tgt']:.3f}",
-                f"{r['conv_time_tgt']:.1f}",
                 f"{r['dr_ref']:.1f}",
-                f"{r['dr_tgt']:.1f}",
-                f"{r['conv_dr_tgt']:.4f}",
+                f"{r['conv_dr_ref']:.4f}",
             ]
             for c_idx, val in enumerate(vals):
                 item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignCenter)
                 self.setItem(r_idx, c_idx, item)
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────–[...]
 # Main tab
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────–[...]
 
 class PredictionTab(QWidget):
     """Drop-in tab: tabs.addTab(PredictionTab(), "Dose Predictions")"""
@@ -256,6 +245,7 @@ class PredictionTab(QWidget):
         super().__init__(parent)
         self._warmup_paths: list[str] = []
         self._results: list[dict]     = []
+        self._ref_ssd: float          = 7.0  # Default to two tubes
         self._fig = None
         self._ax_pred = None
         self._init_widgets()
@@ -268,17 +258,39 @@ class PredictionTab(QWidget):
         self.left_frame.setFixedWidth(350)
         self.left_frame.setObjectName("settingsPanel")
 
-        self.ref_ssd_spin = QDoubleSpinBox()
-        self.ref_ssd_spin.setRange(1.0, 100.0)
-        self.ref_ssd_spin.setSingleStep(0.1)
-        self.ref_ssd_spin.setDecimals(1)
-        self.ref_ssd_spin.setValue(7.0)
+        # SSD button selection
+        self.btn_one_tube = QPushButton("One Tube (5.8 cm)")
+        self.btn_one_tube.clicked.connect(lambda: self._set_ssd(5.8))
+        self.btn_one_tube.setStyleSheet("""
+            QPushButton {
+                background: #f0f0f0;
+                color: #000000;
+                border: 2px solid #999999;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #e0e0e0; }
+            QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+        """)
 
-        self.tgt_ssd_spin = QDoubleSpinBox()
-        self.tgt_ssd_spin.setRange(1.0, 100.0)
-        self.tgt_ssd_spin.setSingleStep(0.1)
-        self.tgt_ssd_spin.setDecimals(1)
-        self.tgt_ssd_spin.setValue(7.5)
+        self.btn_two_tubes = QPushButton("Two Tubes (7.0 cm)")
+        self.btn_two_tubes.clicked.connect(lambda: self._set_ssd(7.0))
+        self.btn_two_tubes.setStyleSheet("""
+            QPushButton {
+                background: #2ca02c;
+                color: #ffffff;
+                border: 2px solid #1a7a1a;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #239b23; }
+            QPushButton:pressed { background: #1a7a1a; }
+        """)
+
+        self.ssd_lbl = QLabel("Reference SSD: 7.0 cm (Two Tubes)")
+        self.ssd_lbl.setStyleSheet(f"color:{PRIMARY}; font-size:11pt; font-weight:bold;")
 
         self.dur_edit = QLineEdit("32, 40, 50, 63, 80, 100, 125, 160, 200, 250")
 
@@ -290,7 +302,7 @@ class PredictionTab(QWidget):
         self.conv_ratio_spin.setValue(CONV_FLASH_RATIO)
         self.conv_ratio_spin.setToolTip(
             "CONV dose rate = this ratio × FLASH dose rate.\n"
-            "Default: 0.002")
+            "Default: 0.0019 (one tube) or 0.002 (two tubes)")
 
         self.warmup_lbl = QLabel("No warmup files loaded")
         self.warmup_lbl.setStyleSheet(f"color:{PRIMARY}; font-size:9pt;")
@@ -324,7 +336,7 @@ class PredictionTab(QWidget):
         self.res_table = ResultsTable()
         self.res_table.setMinimumHeight(180)
 
-        self._fig = Figure(figsize=(12, 4))  # Wider for two plots
+        self._fig = Figure(figsize=(12, 4))
         self._fig.patch.set_facecolor("white")
         
         # Create two subplots side by side
@@ -347,7 +359,7 @@ class PredictionTab(QWidget):
         self._canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._canvas.setMaximumHeight(320)
 
-    # ── Layout ────────────────────────────────────────────────────────────────
+    # ── Layout ──────────────────────────────────────────────────────────–[...]
 
     def _init_layout(self):
         root = QHBoxLayout(self)
@@ -359,16 +371,21 @@ class PredictionTab(QWidget):
         lv.setContentsMargins(12, 12, 12, 12)
         lv.setSpacing(8)
     
-        lv.addWidget(heading_label("SESSION PARAMETERS"))
+        lv.addWidget(heading_label("REFERENCE SSD"))
         lv.addWidget(hseparator())
         lv.addSpacing(20)
     
-        lv.addWidget(section_label("Reference SSD (cm)"))
-        lv.addWidget(self.ref_ssd_spin)
-        lv.addSpacing(20)
+        lv.addWidget(self.ssd_lbl)
+        lv.addSpacing(15)
         
-        lv.addWidget(section_label("Target SSD (cm)"))
-        lv.addWidget(self.tgt_ssd_spin)
+        # Buttons layout
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.btn_one_tube)
+        btn_layout.addWidget(self.btn_two_tubes)
+        lv.addLayout(btn_layout)
+        
+        lv.addSpacing(20)
+        lv.addWidget(hseparator())
         lv.addSpacing(20)
         
         lv.addWidget(section_label("Target durations (ms, comma-separated)"))
@@ -450,7 +467,65 @@ class PredictionTab(QWidget):
         
         root.addWidget(right)
 
-    # ── File loading ──────────────────────────────────────────────────────────
+    # ── SSD selection ────────────────────────────────────────────────────────
+
+    def _set_ssd(self, ssd: float):
+        self._ref_ssd = ssd
+        if ssd == 5.8:
+            self.ssd_lbl.setText("Reference SSD: 5.8 cm (One Tube)")
+            self.btn_one_tube.setStyleSheet("""
+                QPushButton {
+                    background: #2ca02c;
+                    color: #ffffff;
+                    border: 2px solid #1a7a1a;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #239b23; }
+                QPushButton:pressed { background: #1a7a1a; }
+            """)
+            self.btn_two_tubes.setStyleSheet("""
+                QPushButton {
+                    background: #f0f0f0;
+                    color: #000000;
+                    border: 2px solid #999999;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #e0e0e0; }
+                QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+            """)
+        else:  # 7.0
+            self.ssd_lbl.setText("Reference SSD: 7.0 cm (Two Tubes)")
+            self.btn_two_tubes.setStyleSheet("""
+                QPushButton {
+                    background: #2ca02c;
+                    color: #ffffff;
+                    border: 2px solid #1a7a1a;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #239b23; }
+                QPushButton:pressed { background: #1a7a1a; }
+            """)
+            self.btn_one_tube.setStyleSheet("""
+                QPushButton {
+                    background: #f0f0f0;
+                    color: #000000;
+                    border: 2px solid #999999;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #e0e0e0; }
+                QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+            """)
+        log_write(self.log, f"✓ Reference SSD set to {ssd:.1f} cm")
+
+    # ── File loading ────────────────────────────────────────────────────────–[...]
 
     def _load_warmup(self):
         paths, _ = QFileDialog.getOpenFileNames(
@@ -465,7 +540,7 @@ class PredictionTab(QWidget):
             f"{len(paths)} file(s): {', '.join(names)}{suffix}")
         log_write(self.log, f"✓ Loaded {len(paths)} warmup file(s)")
 
-    # ── Prediction ────────────────────────────────────────────────────────────
+    # ── Prediction ─────────────────────────────────────────────────────────[...]
 
     def _predict(self):
         # 1. Calibration
@@ -477,9 +552,7 @@ class PredictionTab(QWidget):
             return
 
         slope, intercept, r2 = fit_calibration(cal)
-        ref_ssd    = self.ref_ssd_spin.value()
-        tgt_ssd    = self.tgt_ssd_spin.value()
-        isl        = (ref_ssd / tgt_ssd) ** 2
+        ref_ssd    = self._ref_ssd
         conv_ratio = self.conv_ratio_spin.value()
 
         log_write(self.log,
@@ -518,27 +591,22 @@ class PredictionTab(QWidget):
         scaling          = today_auc_per_ms / cal_auc_per_ms
 
         warmup_dose_ref = slope * mean_auc + intercept
-        warmup_dose_tgt = ssd_scale(warmup_dose_ref, ref_ssd, tgt_ssd)
         dr_ref          = warmup_dose_ref / (mean_dur / 1000)
-        dr_tgt          = warmup_dose_tgt / (mean_dur / 1000)
-        conv_dr_tgt     = conv_ratio * dr_tgt
         conv_dr_ref     = conv_ratio * dr_ref
 
         log_write(self.log,
                   f"Warmup: mean AUC={mean_auc:.3f} ±{std_auc:.3f}  "
                   f"dur={mean_dur:.0f} ms  scaling={scaling:.4f}")
         log_write(self.log,
-                  f"FLASH DR: {dr_ref:.1f} Gy/s @ {ref_ssd:.1f} cm  |  "
-                  f"{dr_tgt:.1f} Gy/s @ {tgt_ssd:.1f} cm")
+                  f"FLASH DR: {dr_ref:.1f} Gy/s @ {ref_ssd:.1f} cm")
         log_write(self.log,
-                  f"CONV DR: {conv_dr_ref:.4f} Gy/s @ {ref_ssd:.1f} cm  "
-                  f"(ratio={conv_ratio})")
+                  f"CONV DR: {conv_dr_ref:.4f} Gy/s (ratio={conv_ratio})")
 
         self.stats_lbl.setText(
             f"slope={slope:.4f}   intercept={intercept:.4f}   R²={r2:.4f}   │   "
             f"scaling={scaling:.4f}   │   "
-            f"FLASH DR @ {tgt_ssd:.1f} cm: {dr_tgt:.1f} Gy/s   │   "
-            f"CONV DR @ {tgt_ssd:.1f} cm: {conv_dr_tgt:.4f} Gy/s"
+            f"FLASH DR @ {ref_ssd:.1f} cm: {dr_ref:.1f} Gy/s   │   "
+            f"CONV DR @ {ref_ssd:.1f} cm: {conv_dr_ref:.4f} Gy/s"
         )
 
         # 3. Per-duration predictions
@@ -555,50 +623,38 @@ class PredictionTab(QWidget):
         for dur in durations:
             pred_auc = today_auc_per_ms * dur
             dose_ref = slope * pred_auc + intercept
-            dose_tgt = ssd_scale(dose_ref, ref_ssd, tgt_ssd)
 
             if std_auc > 0:
                 hi      = slope * (today_auc_per_ms + std_auc / mean_dur) * dur + intercept
                 lo      = slope * (today_auc_per_ms - std_auc / mean_dur) * dur + intercept
                 sig_ref = (hi - lo) / 2.0
-                sig_tgt = sig_ref * isl
             else:
-                sig_ref = sig_tgt = 0.0
+                sig_ref = 0.0
 
             flash_dr_ref  = dose_ref / (dur / 1000.0)
-            flash_dr_tgt  = dose_tgt / (dur / 1000.0)
-            conv_dr       = conv_ratio * flash_dr_tgt
+            conv_dr       = conv_ratio * flash_dr_ref
             # Time in CONV to deliver the same dose as this FLASH pulse
-            conv_time     = dose_tgt / conv_dr if conv_dr > 0 else float("inf")
-            conv_time_ref = dose_ref / (conv_ratio * flash_dr_ref) if conv_ratio * flash_dr_ref > 0 else float("inf")
+            conv_time     = dose_ref / conv_dr if conv_dr > 0 else float("inf")
 
             self._results.append({
                 "duration_ms":  dur,
                 "pred_auc":     pred_auc,
                 "dose_ref":     dose_ref,
                 "sigma_ref":    sig_ref,
-                "dose_tgt":     dose_tgt,
-                "sigma_tgt":    sig_tgt,
                 "dr_ref":       flash_dr_ref,
-                "dr_tgt":       flash_dr_tgt,
-                "conv_dr_tgt":  conv_dr,
-                "conv_time_ref": conv_time_ref,
-                "conv_time_tgt": conv_time,
+                "conv_dr_ref":  conv_dr,
+                "conv_time_ref": conv_time,
             })
 
-        self.res_table.populate(self._results, ref_ssd, tgt_ssd)
-        self._draw_plots(cal, slope, intercept, r2,
-                         ref_ssd, tgt_ssd, scaling, dr_ref, dr_tgt,
-                         conv_ratio)
+        self.res_table.populate(self._results, ref_ssd)
+        self._draw_plots(cal, slope, intercept, r2, ref_ssd, scaling, dr_ref)
         self.save_btn.setEnabled(True)
         log_write(self.log,
                   f"✓ Predictions ready for {len(durations)} durations")
 
-    # ── Plots ─────────────────────────────────────────────────────────────────
+    # ── Plots ────────────────────────────────────────────────────────────[...]
 
-    def _draw_plots(self, cal, slope, intercept, r2,
-                ref_ssd, tgt_ssd, scaling, dr_ref, dr_tgt,
-                conv_ratio):
+    def _draw_plots(self, cal, slope, intercept, r2, ref_ssd, scaling, dr_ref):
 
         # ── LEFT PLOT: Calibration curve only ─────────────────────────────
         ax_cal = self._ax_cal
@@ -653,7 +709,7 @@ class PredictionTab(QWidget):
         self._fig.tight_layout()
         self._canvas.draw()
 
-    # ── Save ──────────────────────────────────────────────────────────────────
+    # ── Save ───────────────────────────────────────────────────────────[...]
 
     def _save_results(self):
         if not self._results:
@@ -666,8 +722,7 @@ class PredictionTab(QWidget):
 
         cal = self.cal_table.get_data()
         slope, intercept, r2 = fit_calibration(cal)
-        ref_ssd    = self.ref_ssd_spin.value()
-        tgt_ssd    = self.tgt_ssd_spin.value()
+        ref_ssd    = self._ref_ssd
         conv_ratio = self.conv_ratio_spin.value()
 
         with open(path, "w", encoding="utf-8") as fh:
@@ -677,20 +732,17 @@ class PredictionTab(QWidget):
             fh.write(f"Calibration intercept : {intercept:.5f}\n")
             fh.write(f"R²                    : {r2:.5f}\n")
             fh.write(f"Reference SSD         : {ref_ssd:.1f} cm\n")
-            fh.write(f"Target SSD            : {tgt_ssd:.1f} cm\n")
             fh.write(f"CONV/FLASH DR ratio   : {conv_ratio}\n\n")
             fh.write(
                 f"{'Dur(ms)':>8}  {'Pred AUC':>10}  "
-                f"{'Dose@ref':>10}  {'σ ref':>7}  "
-                f"{'Dose@tgt':>10}  {'σ tgt':>7}  "
-                f"{'FLASH DR@ref':>12}  {'FLASH DR@tgt':>12}  "
-                f"{'CONV DR@tgt':>12}  {'CONV time(s)':>12}\n"
+                f"{'Dose':>10}  {'σ':>7}  "
+                f"{'FLASH DR':>12}  "
+                f"{'CONV DR':>12}  {'CONV time(s)':>12}\n"
             )
-            fh.write("-" * 115 + "\n")
+            fh.write("-" * 90 + "\n")
             fh.writelines(f"{r['duration_ms']:>8}  {r['pred_auc']:>10.3f}  "
                     f"{r['dose_ref']:>10.3f}  {r['sigma_ref']:>7.3f}  "
-                    f"{r['dose_tgt']:>10.3f}  {r['sigma_tgt']:>7.3f}  "
-                    f"{r['dr_ref']:>12.1f}  {r['dr_tgt']:>12.1f}  "
-                    f"{r['conv_dr_tgt']:>12.4f}  {r['conv_time_tgt']:>12.1f}\n" for r in self._results)
+                    f"{r['dr_ref']:>12.1f}  "
+                    f"{r['conv_dr_ref']:>12.4f}  {r['conv_time_ref']:>12.1f}\n" for r in self._results)
 
         log_write(self.log, f"✓ Saved: {Path(path).name}")
