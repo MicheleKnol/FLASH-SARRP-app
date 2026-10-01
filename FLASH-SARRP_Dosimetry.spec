@@ -5,7 +5,7 @@ a = Analysis(
     ['FLASH-SARRP_Dosimetry.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('LogoApp.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='LogoApp.ico',
 )

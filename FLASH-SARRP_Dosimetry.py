@@ -2,7 +2,9 @@
 main
 """
 
+import os
 import sys
+import tkinter as tk
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
@@ -12,6 +14,13 @@ from Fibre_Prediction import PredictionTab
 from Film_Analysis import FilmTab
 from Film_Calibration import FilmCalibrationTab
 
+
+def resource_path(relative_path):
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
+root = tk.Tk()
+root.iconbitmap(resource_path("LogoApp.ico"))
 
 class MainWindow(QMainWindow):
     def __init__(self):
