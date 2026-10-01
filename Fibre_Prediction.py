@@ -271,22 +271,22 @@ class PredictionTab(QWidget):
                 font-weight: bold;
             }
             QPushButton:hover { background: #e0e0e0; }
-            QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+            QPushButton:pressed { background: #ff95f1; color: #ffffff; }
         """)
 
         self.btn_two_tubes = QPushButton("Two Tubes (7.0 cm)")
         self.btn_two_tubes.clicked.connect(lambda: self._set_ssd(7.0))
         self.btn_two_tubes.setStyleSheet("""
             QPushButton {
-                background: #2ca02c;
+                background: #fa4be3;
                 color: #ffffff;
-                border: 2px solid #1a7a1a;
+                border: 2px solid #ff00dd;
                 border-radius: 8px;
                 padding: 8px 16px;
                 font-weight: bold;
             }
-            QPushButton:hover { background: #239b23; }
-            QPushButton:pressed { background: #1a7a1a; }
+            QPushButton:hover { background: #ff95f1; }
+            QPushButton:pressed { background: #ff95f1; }
         """)
 
         self.ssd_lbl = QLabel("Reference SSD: 7.0 cm (Two Tubes)")
@@ -388,7 +388,7 @@ class PredictionTab(QWidget):
         lv.addWidget(hseparator())
         lv.addSpacing(20)
         
-        lv.addWidget(section_label("Target durations (ms, comma-separated)"))
+        lv.addWidget(section_label("Target durations\n(ms, comma-separated)"))
         lv.addWidget(self.dur_edit)
         lv.addSpacing(20)
     
@@ -475,15 +475,15 @@ class PredictionTab(QWidget):
             self.ssd_lbl.setText("Reference SSD: 5.8 cm (One Tube)")
             self.btn_one_tube.setStyleSheet("""
                 QPushButton {
-                    background: #2ca02c;
+                    background: #fa4be3;
                     color: #ffffff;
-                    border: 2px solid #1a7a1a;
+                    border: 2px solid #ff00dd;
                     border-radius: 8px;
                     padding: 8px 16px;
                     font-weight: bold;
                 }
-                QPushButton:hover { background: #239b23; }
-                QPushButton:pressed { background: #1a7a1a; }
+                QPushButton:hover { background: #ff95f1; }
+                QPushButton:pressed { background: #ff95f1; }
             """)
             self.btn_two_tubes.setStyleSheet("""
                 QPushButton {
@@ -495,21 +495,21 @@ class PredictionTab(QWidget):
                     font-weight: bold;
                 }
                 QPushButton:hover { background: #e0e0e0; }
-                QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+                QPushButton:pressed { background: #ff95f1; color: #ffffff; }
             """)
         else:  # 7.0
             self.ssd_lbl.setText("Reference SSD: 7.0 cm (Two Tubes)")
             self.btn_two_tubes.setStyleSheet("""
                 QPushButton {
-                    background: #2ca02c;
+                    background: #fa4be3;
                     color: #ffffff;
-                    border: 2px solid #1a7a1a;
+                    border: 2px solid #ff00dd;
                     border-radius: 8px;
                     padding: 8px 16px;
                     font-weight: bold;
                 }
-                QPushButton:hover { background: #239b23; }
-                QPushButton:pressed { background: #1a7a1a; }
+                QPushButton:hover { background: #ff95f1; }
+                QPushButton:pressed { background: #ff95f1; }
             """)
             self.btn_one_tube.setStyleSheet("""
                 QPushButton {
@@ -521,7 +521,7 @@ class PredictionTab(QWidget):
                     font-weight: bold;
                 }
                 QPushButton:hover { background: #e0e0e0; }
-                QPushButton:pressed { background: #2ca02c; color: #ffffff; }
+                QPushButton:pressed { background: #ff95f1; color: #ffffff; }
             """)
         log_write(self.log, f"✓ Reference SSD set to {ssd:.1f} cm")
 
@@ -609,7 +609,7 @@ class PredictionTab(QWidget):
             f"CONV DR @ {ref_ssd:.1f} cm: {conv_dr_ref:.4f} Gy/s"
         )
 
-        # 3. Per-duration predictions
+        # 3. Per-duration predictions using the SINGLE calculated dose-rate
         try:
             durations = [int(x.strip())
                          for x in self.dur_edit.text().split(",")
@@ -621,27 +621,25 @@ class PredictionTab(QWidget):
 
         self._results = []
         for dur in durations:
-            pred_auc = today_auc_per_ms * dur
-            dose_ref = slope * pred_auc + intercept
-
+            # Dose = dose_rate × time
+            dose_ref = dr_ref * (dur / 1000.0)
+            
             if std_auc > 0:
-                hi      = slope * (today_auc_per_ms + std_auc / mean_dur) * dur + intercept
-                lo      = slope * (today_auc_per_ms - std_auc / mean_dur) * dur + intercept
-                sig_ref = (hi - lo) / 2.0
+                # Propagate uncertainty: σ_dose = σ_dose_ref
+                sig_ref = (slope * std_auc) / (mean_dur / 1000.0) * (dur / mean_dur)
             else:
                 sig_ref = 0.0
 
-            flash_dr_ref  = dose_ref / (dur / 1000.0)
-            conv_dr       = conv_ratio * flash_dr_ref
+            conv_dr = conv_ratio * dr_ref
             # Time in CONV to deliver the same dose as this FLASH pulse
-            conv_time     = dose_ref / conv_dr if conv_dr > 0 else float("inf")
+            conv_time = dose_ref / conv_dr if conv_dr > 0 else float("inf")
 
             self._results.append({
                 "duration_ms":  dur,
-                "pred_auc":     pred_auc,
+                "pred_auc":     today_auc_per_ms * dur,  # For reference only
                 "dose_ref":     dose_ref,
                 "sigma_ref":    sig_ref,
-                "dr_ref":       flash_dr_ref,
+                "dr_ref":       dr_ref,
                 "conv_dr_ref":  conv_dr,
                 "conv_time_ref": conv_time,
             })
